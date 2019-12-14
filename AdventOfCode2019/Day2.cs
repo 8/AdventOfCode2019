@@ -16,56 +16,57 @@ namespace AdventOfCode2019
       End      = 99,
     }
 
-    static (int[] State, Index Index) CalcOp(int[] stateIn, Index i)
+    static int[] StateWith(int[] state, Index index, int value)
     {
-      var stateOut = stateIn.ToArray();
+      var s = state.ToArray();
+      s[index] = value;
+      return s;
+    }
 
-      int GetAddress(int i)
-        => stateIn[i];
+    static (int[] State, Index Index) Step(int[] state, Index i)
+    {
+      static int GetAddress(int[] state, int i)
+        => state[i];
 
-      int GetValue(int i)
-        => stateIn[GetAddress(i)];
+      static int GetValue(int[] state, int i)
+        => state[GetAddress(state, i)];
 
-      OpCodes op = (OpCodes)stateIn[i];
-      var v1 = GetValue(i.Value + 1);
-      var v2 = GetValue(i.Value + 2);
-      var outIndex = GetAddress(i.Value + 3);
-
-      var result =
-        op switch
+      static (int[] State, Index Index) GetResult(int[] state, Index i, OpCodes op)
+      {
+        var v1 = GetValue(state, i.Value + 1);
+        var v2 = GetValue(state, i.Value + 2);
+        var outIndex = GetAddress(state, i.Value + 3);
+        var result = op switch
         {
           OpCodes.Add => v1 + v2,
           OpCodes.Multiply => v1 * v2,
-          _ => throw new InvalidOperationException($"unable to handle OpCode: {op}"),
+          _ => throw new InvalidOperationException($"unknown OpCode '{op}'"),
         };
-      stateOut[outIndex] = result;
 
-      return (State: stateOut, Index: new Index(i.Value + 4));
+        return (State: StateWith(state, outIndex, result), Index: new Index(i.Value + 4));
+      }
+
+      OpCodes op = (OpCodes)state[i];
+
+      return op switch
+      {
+        OpCodes.End => (state, Index.End),
+        var o => GetResult(state, i, o),
+      };
     }
 
     int[] Run(int[] program)
     {
+      //List<int[]> states = new List<int[]>();
       var state = program.ToArray();
       Index i = 0;
 
-      bool exit = false;
       while (true)
       {
-        var op = (OpCodes)state[i];
+        //states.Add(state);
+        (state, i) = Step(state, i);
 
-        switch (op)
-        {
-          case OpCodes.Add:
-          case OpCodes.Multiply:
-            (state, i) = CalcOp(state, i);
-            break;
-
-          case OpCodes.End: exit = true;  break;
-          default:
-            throw new InvalidOperationException($"Invalid opcode: {op} at index: {i}");
-        }
-
-        if (exit)
+        if (i.Value == Index.End.Value)
           break;
       }
 
