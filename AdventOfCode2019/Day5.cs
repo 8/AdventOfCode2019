@@ -31,13 +31,25 @@ namespace AdventOfCode2019
     static int GetValue(int[] state, int i)
       => state[GetAddress(state, i)];
 
-    static (int[] State, Index Index) AddMultiply(int[] state, Index i, OpCodes op)
+    static int GetParameter(int[] state, Index i, int parameterIndex, Op op)
     {
-      var v1 = GetValue(state, i.Value + 1);
-      var v2 = GetValue(state, i.Value + 2);
+      var mode = GetParameterMode(op, parameterIndex);
+
+      return mode switch
+      {
+        ParameterMode.Address => GetAddress(state, i.Value + 1 + parameterIndex),
+        ParameterMode.Value => GetValue(state, i.Value + 1 + parameterIndex),
+        _ => throw new ArgumentOutOfRangeException(nameof(mode)),
+      };
+    }
+
+    static (int[] State, Index Index) AddMultiply(int[] state, Index i, Op op)
+    {
+      var v1 = GetParameter(state, i, 0, op);
+      var v2 = GetParameter(state, i, 1, op);
       var writeAddress = GetAddress(state, i.Value + 3);
 
-      var result = op switch
+      var result = op.Opcode switch
       {
         OpCodes.Add => v1 + v2,
         OpCodes.Multiply => v1 * v2,
@@ -47,9 +59,9 @@ namespace AdventOfCode2019
       return (State: StateWith(state, writeAddress, result), Index: new Index(i.Value + 4));
     }
 
-    static (int[] State, Index index) Print(int[] state, Index i, Action<int> printCallback)
+    static (int[] State, Index index) Print(int[] state, Index i, Action<int> printCallback, Op op)
     {
-      var param = GetValue(state, i.Value + 1);
+      var param = GetParameter(state, i, 0, op);
       printCallback(param);
       return (state, i.Value + 2);
     }
@@ -101,13 +113,16 @@ namespace AdventOfCode2019
       result.Should().BeEquivalentTo(expectedParameterModes);
     }
 
-    static Op GetOp(int n) 
+    static Op GetOp(int n)
       => new Op
       {
         Opcode = GetOpCode(n),
         ParameterModes = GetParameterModes(n),
       };
 
+    static ParameterMode GetParameterMode(Op op, int i)
+      => op.ParameterModes.Length > i ? op.ParameterModes[i] : ParameterMode.Value;
+   
     static (int[] State, Index Index) Step(int[] state, Index i, Action<int> printCallback, Func<int> readInputCallback)
     {
       var op = GetOp(state[i]);
@@ -115,8 +130,9 @@ namespace AdventOfCode2019
       return op.Opcode switch
       {
         OpCodes.End => (state, Index.End),
-        OpCodes o when o == OpCodes.Add || o == OpCodes.Multiply => AddMultiply(state, i, o),
-        OpCodes.Print => Print(state, i, printCallback),
+        OpCodes.Add => AddMultiply(state, i, op),
+        OpCodes.Multiply => AddMultiply(state, i, op),
+        OpCodes.Print => Print(state, i, printCallback, op),
         OpCodes.Write => Read(state, i, readInputCallback),
         _ => throw new InvalidOperationException($"unknown OpCode '{op}'"),
       };
