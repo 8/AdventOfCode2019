@@ -9,7 +9,7 @@ namespace AdventOfCode2019
 {
   public class Day5
   {
-    enum OpCodes
+    public enum OpCodes
     {
       Add = 1,
       Multiply = 2,
@@ -61,11 +61,58 @@ namespace AdventOfCode2019
       return (StateWith(state, new Index(param), value), i.Value + 2);
     }
 
+    public enum ParameterMode { Address, Value };
+
+    class Op
+    {
+      public OpCodes Opcode { get; set; }
+      public ParameterMode[] ParameterModes { get; set; }
+    }
+
+    static OpCodes GetOpCode(int n)
+      => (OpCodes)int.Parse(n.ToString("00")[^2..]);
+
+    [Theory,
+      InlineData(1, OpCodes.Add),
+      InlineData(101, OpCodes.Add),
+      InlineData(123231202, OpCodes.Multiply),
+      ]
+    public void Day5_GetOpCode(int n, OpCodes expectedOpCode)
+    {
+      var result = GetOpCode(n);
+
+      result.Should().Be(expectedOpCode);
+    }
+
+    static ParameterMode[] GetParameterModes(int n)
+      => n.ToString("00")[..^2]
+        .Select(c => (ParameterMode)int.Parse(new string(c, 1)))
+        .Reverse()
+        .ToArray();
+
+    [Theory,
+      InlineData(1002, new ParameterMode[] { ParameterMode.Address, ParameterMode.Value })]
+    public void Day5_GetParameterModes(int n, ParameterMode[] expectedParameterModes)
+    {
+      /* act */
+      var result = GetParameterModes(n);
+
+      /* assert */
+      result.Should().BeEquivalentTo(expectedParameterModes);
+    }
+
+    static Op GetOp(int n) 
+      => new Op
+      {
+        Opcode = GetOpCode(n),
+        ParameterModes = GetParameterModes(n),
+      };
+
     static (int[] State, Index Index) Step(int[] state, Index i, Action<int> printCallback, Func<int> readInputCallback)
     {
-      OpCodes op = (OpCodes)state[i];
+      var op = GetOp(state[i]);
 
-      return op switch
+      return op.Opcode switch
       {
         OpCodes.End => (state, Index.End),
         OpCodes o when o == OpCodes.Add || o == OpCodes.Multiply => AddMultiply(state, i, o),
