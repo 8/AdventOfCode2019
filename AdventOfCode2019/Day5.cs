@@ -73,7 +73,7 @@ namespace AdventOfCode2019
       return (StateWith(state, new Index(param), value), i.Value + 2);
     }
 
-    public enum ParameterMode { Address, Value };
+    public enum ParameterMode { Value = 0, Address = 1};
 
     class Op
     {
@@ -212,6 +212,25 @@ namespace AdventOfCode2019
       /* assert */
       output.Count.Should().Be(1);
       output[0].Should().Be(33);
+    }
+
+    [Fact]
+    public void Day5_Run_Test()
+    {
+      var program = new int[] { 1101, 100, -1, 4, 0 };
+      var state = Run(program, n => throw new Exception(), () => throw new Exception());
+      Console.WriteLine(FormatState(state));
+    }
+
+    [Fact]
+    public void Day5_Part1()
+    {
+      var program = new int[] { };
+
+      StringBuilder stringBuilder = new StringBuilder();
+      var state = Run(program, n => stringBuilder.Append(n), () => 1);
+
+      Console.WriteLine(stringBuilder.ToString());
     }
  
   }
