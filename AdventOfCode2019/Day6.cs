@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using FluentAssertions;
 using Xunit;
 
@@ -13,7 +12,7 @@ namespace AdventOfCode2019
     static (string Parent, string Child) ParseOrbit(string s)
       => s.Split(')') switch { var parts => (parts[0], parts[1]) };
 
-    static IEnumerable<(string Parent, string Child)> ParseOrbits(string s)
+    static IEnumerable<(string Parent, string Child)> GetOrbits(string s)
     {
       string line;
       using (var sr = new StringReader(s))
@@ -25,18 +24,18 @@ namespace AdventOfCode2019
       => items.GroupBy(o => o.Parent)
       .ToDictionary(g => g.Key, g => g.Select(o => o.Child).ToArray());
 
-    static int CountDescendants(Dictionary<string, string[]> items, string parent, int level = 0)
+    static int GetCountDescendants(Dictionary<string, string[]> items, string parent, int level = 0)
     {
       if (!items.TryGetValue(parent, out string[] children))
         return level;
       else
-        return level + children.Sum(c => CountDescendants(items, c, level + 1));
+        return level + children.Sum(c => GetCountDescendants(items, c, level + 1));
     }
 
-    static int CountDescendants(string input)
-      => ParseOrbits(input) 
+    static int GetCountDescendants(string input)
+      => GetOrbits(input) 
         switch { var o => GetNodes(o) 
-          switch { var items => CountDescendants(items, "COM", 0) } };
+          switch { var items => GetCountDescendants(items, "COM", 0) } };
 
     [Theory,
       InlineData(@"COM)B
@@ -58,7 +57,7 @@ K)L", 42),
       ]
     public void Day6_CountDescendents(string input, int expectedCount)
     {
-      var result = CountDescendants(input);
+      var result = GetCountDescendants(input);
       Console.WriteLine(result);
       result.Should().Be(expectedCount);
     }
@@ -84,10 +83,78 @@ K)L", 42),
     {
       string input = GetInput();
 
-      int result = CountDescendants(input);
+      int result = GetCountDescendants(input);
 
       Console.WriteLine(result);
     }
 
+    /* part 2 */
+
+    int GetHopCount(string input, string n1, string n2)
+    {
+      var parent2Children = GetOrbits(input).GroupBy(o => o.Parent).ToDictionary(g => g.Key, g => g.Select(o => o.Child).ToArray());
+      var child2Parent = GetOrbits(input).ToDictionary(o => o.Child, o => o.Parent);
+      return Search(parent2Children, child2Parent, null, child2Parent[n1], n2, 0);
+    }
+
+    int Search(
+      Dictionary<string, string[]> parent2Children,
+      Dictionary<string, string> child2Parent,
+      string sourceNode,
+      string currentNode,
+      string searchedNode,
+      int distance
+      )
+    {
+      string parent;
+      if (!child2Parent.TryGetValue(currentNode, out parent))
+        parent = null;
+
+      /* did we find the target? */
+      if (currentNode == child2Parent[searchedNode])
+        return distance;
+
+      /* if we didn't come from the parent, then look into the parent */
+      if (parent != null && parent != sourceNode)
+      {
+        var result = Search(parent2Children, child2Parent, currentNode, parent, searchedNode, distance + 1);
+        if (result != -1)
+          return result;
+      }
+
+      if (parent2Children.TryGetValue(currentNode, out string[] children))
+      {
+        foreach (var child in children)
+          if (child != sourceNode)
+          {
+            var result = Search(parent2Children, child2Parent, currentNode, child, searchedNode, distance + 1);
+            if (result != -1)
+              return result;
+          }
+      }
+
+      return -1;
+    }
+
+    [Theory,
+      InlineData("COM)B\nB)C\nC)D\nD)E\nE)F\nB)G\nG)H\nD)I\nE)J\nJ)K\nK)L\nK)YOU\nI)SAN", 4),
+      InlineData("COM)YOU\nCOM)SAN", 0),
+      InlineData("COM)YOU\nCOM)A\nA)SAN", 1),
+      ]
+    public void Day6_GetHops(string s, int expectedHopCount)
+    {
+      var orbits = GetOrbits(s);
+      var result = GetHopCount(s, "YOU", "SAN");
+
+      result.Should().Be(expectedHopCount);
+    }
+
+    [Fact]
+    public void Day6_Part2()
+    {
+      var input = GetInput();
+      var result = GetHopCount(input, "YOU", "SAN");
+      Console.WriteLine(result);
+    }
   }
 }
